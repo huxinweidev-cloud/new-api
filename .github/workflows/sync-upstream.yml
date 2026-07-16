@@ -1,12 +1,16 @@
 name: Sync upstream
 
+# Merge QuantumNous/new-api into this fork's main.
+# GITHUB_TOKEN cannot push commits that touch .github/workflows/* —
+# use repo secret SYNC_UPSTREAM_TOKEN (PAT with contents + workflow).
+
 on:
   schedule:
     - cron: "20 */8 * * *"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: sync-upstream-main
@@ -17,11 +21,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Require SYNC_UPSTREAM_TOKEN
+        env:
+          SYNC_UPSTREAM_TOKEN: ${{ secrets.SYNC_UPSTREAM_TOKEN }}
+        run: |
+          if [ -z "${SYNC_UPSTREAM_TOKEN}" ]; then
+            echo "::error::Missing repo secret SYNC_UPSTREAM_TOKEN (PAT with contents:write + workflow). Default GITHUB_TOKEN cannot update workflow files from upstream."
+            exit 1
+          fi
+
       - name: Checkout fork
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: main
+          token: ${{ secrets.SYNC_UPSTREAM_TOKEN }}
 
       - name: Configure git
         run: |
