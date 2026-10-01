@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 
 	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
@@ -49,6 +50,74 @@ func UnmarshalJsonStr(data string, v any) error {
 
 func DecodeJson(reader io.Reader, v any) error {
 	return kitutil.DecodeJson(reader, v)
+}
+
+// DecodeJsonStrict accepts one JSON value, rejecting unknown fields, duplicate
+// object keys and trailing values. Callers must bound the reader themselves.
+// Kept in the host codec so business code never chooses its own JSON engine.
+func DecodeJsonStrict(reader io.Reader, v any) error {
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	if err := validateUniqueJSONKeys(json.NewDecoder(bytes.NewReader(data)), 0); err != nil {
+		return err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(v); err != nil {
+		return err
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return errors.New("expected one JSON value")
+	}
+	return nil
+}
+
+func validateUniqueJSONKeys(decoder *json.Decoder, depth int) error {
+	if depth > 64 {
+		return errors.New("JSON nesting is too deep")
+	}
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	delimiter, nested := token.(json.Delim)
+	if !nested {
+		return nil
+	}
+	switch delimiter {
+	case '{':
+		keys := make(map[string]struct{})
+		for decoder.More() {
+			key, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+			name, ok := key.(string)
+			if !ok {
+				return errors.New("invalid JSON object key")
+			}
+			if _, exists := keys[name]; exists {
+				return errors.New("duplicate JSON object key")
+			}
+			keys[name] = struct{}{}
+			if err := validateUniqueJSONKeys(decoder); err != nil {
+				return err
+			}
+		}
+	case '[':
+		for decoder.More() {
+			if err := validateUniqueJSONKeys(decoder); err != nil {
+				return err
+			}
+		}
+	default:
+		return errors.New("invalid JSON delimiter")
+	}
+	_, err = decoder.Token()
+	return err
 }
 
 // DecodeJsonWithValidation decodes JSON and applies Gin's configured binding-tag
