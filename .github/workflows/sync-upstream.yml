@@ -12,6 +12,8 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      TMPDIR: ${{ runner.temp }}
     steps:
       - name: Require workflow-capable sync credential
         env:
