@@ -1,34 +1,19 @@
-name: Sync upstream
+name: Fork maintenance gate
 on:
-  schedule:
-    - cron: '20 */8 * * *'
+  push:
+    branches: [main, inkos-integration, newapi-integration]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: sync-upstream-main
-  cancel-in-progress: false
+  group: fork-maintenance-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  sync:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 35
     steps:
-      - name: Require workflow-capable sync credential
-        env:
-          SYNC_UPSTREAM_TOKEN: ${{ secrets.SYNC_UPSTREAM_TOKEN }}
-        run: test -n "$SYNC_UPSTREAM_TOKEN"
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
-          token: ${{ secrets.SYNC_UPSTREAM_TOKEN }}
-      - name: Merge candidate without overwriting fork modifications
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git remote add upstream https://github.com/QuantumNous/new-api.git
-          git fetch upstream main
-          git merge upstream/main --no-edit
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -58,5 +43,3 @@ jobs:
           go build ./...
           (cd relaykit && go build ./...)
           go test -p=2 ./controller ./middleware ./service -run 'Inkos|Auth|Session|Login' -count=1
-      - name: Publish only tested merge (non-force push)
-        run: git push origin HEAD:main
