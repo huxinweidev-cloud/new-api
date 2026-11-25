@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -99,8 +98,8 @@ func init() {
 	for i := 1; i <= constant.ChannelTypeDummy; i++ {
 		apiType, success := common.ChannelType2APIType(i)
 		if !success || apiType == constant.APITypeAIProxyLibrary {
-			if models := channelTypePluginModels(i); len(models) > 0 {
-				channelId2Models[i] = models
+			if plugin, ok := jsplugin.DefaultRegistry.GetByChannelType(i); ok {
+				channelId2Models[i] = append([]string(nil), plugin.Meta.Models...)
 			}
 			continue
 		}
@@ -111,28 +110,14 @@ func init() {
 		adaptor.Init(meta)
 		channelId2Models[i] = adaptor.GetModelList()
 		if len(channelId2Models[i]) == 0 {
-			if models := channelTypePluginModels(i); len(models) > 0 {
-				channelId2Models[i] = models
+			if plugin, ok := jsplugin.DefaultRegistry.GetByChannelType(i); ok {
+				channelId2Models[i] = append([]string(nil), plugin.Meta.Models...)
 			}
 		}
 	}
 	openAIModels = lo.UniqBy(openAIModels, func(m dto.OpenAIModels) string {
 		return m.Id
 	})
-}
-
-// channelTypePluginModels lists the models of every plugin declaring a
-// built-in channel type, each once, in plugin key order.
-func channelTypePluginModels(channelType int) []string {
-	var models []string
-	for _, plugin := range jsplugin.DefaultRegistry.PluginsByChannelType(channelType) {
-		for _, name := range plugin.Meta.Models {
-			if !slices.Contains(models, name) {
-				models = append(models, name)
-			}
-		}
-	}
-	return models
 }
 
 func channelOwnerName(channelType int) string {
@@ -343,8 +328,8 @@ func DashboardListModels(c *gin.Context) {
 		modelsByChannel[channelType] = append([]string(nil), models...)
 	}
 	for channelType := 1; channelType <= constant.ChannelTypeDummy; channelType++ {
-		if models := channelTypePluginModels(channelType); len(models) > 0 {
-			modelsByChannel[channelType] = models
+		if plugin, ok := jsplugin.DefaultRegistry.GetByChannelType(channelType); ok {
+			modelsByChannel[channelType] = append([]string(nil), plugin.Meta.Models...)
 		}
 	}
 	c.JSON(200, gin.H{

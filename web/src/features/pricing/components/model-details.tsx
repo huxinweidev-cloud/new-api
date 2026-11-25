@@ -64,9 +64,8 @@ import { useSystemConfigStore } from '@/stores/system-config-store'
 import { DEFAULT_TOKEN_UNIT } from '../constants'
 import { useBillingTime } from '../hooks/use-billing-time'
 import { usePricingData } from '../hooks/use-pricing-data'
-import type { ParsedTaskTier, ParsedTier } from '../lib/billing-expr'
+import type { ParsedTaskTier } from '../lib/billing-expr'
 import { formatBillingCondition } from '../lib/billing-expression/condition-display'
-import { getTierCachePricingMode } from '../lib/cache-pricing'
 import {
   formatTaskUsageUnitPrice,
   getDynamicPriceEntries,
@@ -961,19 +960,10 @@ function getDynamicPriceFields(
   tiers: DynamicPricingTier[],
   options: DynamicPriceOptions
 ) {
-  const cachePricingMode = getTierCachePricingMode(
-    tiers.filter((tier): tier is ParsedTier => !('unitPrices' in tier)),
-    options.modelName
-  )
   return [
     ...new Map(
       tiers
-        .flatMap((tier) =>
-          getDynamicPriceEntries(tier, {
-            ...options,
-            cachePricingMode,
-          })
-        )
+        .flatMap((tier) => getDynamicPriceEntries(tier, options))
         .map((entry) => [entry.field, entry])
     ).values(),
   ]
@@ -1193,7 +1183,6 @@ function ProviderGroupPricingSection(
       props.model.billing_usage_examples
     )
     const priceFields = getDynamicPriceFields(dynamicTiers, {
-      modelName: props.model.model_name,
       tokenUnit: props.tokenUnit,
       showRechargePrice,
       priceRate: props.priceRate,
@@ -1207,7 +1196,6 @@ function ProviderGroupPricingSection(
         return [
           group,
           getDynamicFormattedPricesByTier(dynamicTiers, {
-            modelName: props.model.model_name,
             tokenUnit: props.tokenUnit,
             showRechargePrice,
             priceRate: props.priceRate,
@@ -1562,7 +1550,6 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
             )}
             {isDynamic && !simpleTaskPricing && (
               <DynamicPricingBreakdown
-                modelName={baseModel.model_name}
                 billingExpr={baseModel.billing_expr}
                 usageSchema={baseModel.billing_usage_schema}
                 taskPriceOptions={{

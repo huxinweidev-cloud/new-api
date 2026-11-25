@@ -123,7 +123,7 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 			if errors.As(err, &apiErr) {
 				return apiErr
 			}
-			return newConvertRequestFailedError(c, info, err)
+			return types.NewError(err, types.ErrorCodeConvertRequestFailed)
 		}
 		relaycommon.AppendRequestConversionFromRequest(info, convertedRequest)
 

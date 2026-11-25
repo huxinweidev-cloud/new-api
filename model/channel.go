@@ -1294,9 +1294,8 @@ func BatchSetChannelTag(ids []int, tag *string) error {
 		return err
 	}
 
-	// Read our uncommitted tag changes before rebuilding abilities.
-	var channels []*Channel
-	err = tx.Where("id in (?)", ids).Find(&channels).Error
+	// update ability status
+	channels, err := GetChannelsByIds(ids)
 	if err != nil {
 		tx.Rollback()
 		return err

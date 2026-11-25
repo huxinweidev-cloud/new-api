@@ -320,11 +320,11 @@ export function buildPreviewRows(
       currency
     )
   }
-  let createCacheLabel = t('Standard cache write price')
+  let createCacheLabel = t('Cache write price')
   if (cacheWriteMode === 'claude_ttl') {
-    createCacheLabel = t('Cache create (5m) price')
+    createCacheLabel = t('Cache Creation (5m)')
   } else if (cacheWriteMode === 'openai_ttl') {
-    createCacheLabel = t('Cache create (30m) price')
+    createCacheLabel = t('Cache Creation (30m)')
   }
   const rows: PreviewRow[] = [
     {

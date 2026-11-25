@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { ListRestart, RefreshCw, TriangleAlert } from 'lucide-react'
+import { RefreshCw, TriangleAlert } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -32,15 +32,12 @@ import {
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { toIntlLocale } from '@/i18n/languages'
-import { formatNumber } from '@/lib/format'
 
 import { listMarketplaceSources, listTaskPlugins } from '../api'
 import {
   COMMUNITY_MARKETPLACE_INDEX_URL,
   deriveInstallState,
   fetchMarketplaceIndex,
-  getMarketplaceUpdates,
   indexHasIntegrityHashes,
   marketplaceSourceKind,
 } from '../lib/marketplace'
@@ -62,10 +59,6 @@ import {
 import { MarketplacePluginCard } from './marketplace-plugin-card'
 import { MarketplaceSourceMenu } from './marketplace-source-menu'
 import { MarketplaceSourcesDialog } from './marketplace-sources-dialog'
-import {
-  MarketplaceUpdatesDialog,
-  type MarketplaceUpdateSelection,
-} from './marketplace-updates-dialog'
 import { PluginCodeLookup, type PluginCodeMatch } from './plugin-code-lookup'
 import {
   PluginKindSwitch,
@@ -86,16 +79,13 @@ const marketplacePluginParts = (plugin: MarketplacePlugin) =>
 type MarketplaceGroup = 'official' | 'community'
 
 export function MarketplacePanel(props: MarketplacePanelProps) {
-  const { t, i18n } = useTranslation()
-  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
+  const { t } = useTranslation()
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const [group, setGroup] = useState<MarketplaceGroup | null>(null)
   const [selectedSourceUrl, setSelectedSourceUrl] = useState('')
   const [installTarget, setInstallTarget] =
     useState<MarketplaceInstallTarget | null>(null)
   const [codeMatch, setCodeMatch] = useState<PluginCodeMatch | null>(null)
-  const [updateSelection, setUpdateSelection] =
-    useState<MarketplaceUpdateSelection | null>(null)
 
   const sourcesQuery = useQuery({
     queryKey: ['task-plugin-marketplace-sources'],
@@ -138,14 +128,6 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
     },
   })
   const indexPlugins = indexQuery.data?.plugins
-  const updates = useMemo(
-    () =>
-      indexQuery.data && installedQuery.data
-        ? getMarketplaceUpdates(indexQuery.data, installedQuery.data)
-        : [],
-    [indexQuery.data, installedQuery.data]
-  )
-  const updateCount = updates.filter((item) => !item.skip).length
   const kindCounts = useMemo(
     () => countPluginKinds((indexPlugins ?? []).map(marketplacePluginParts)),
     [indexPlugins]
@@ -262,7 +244,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
                   </Badge>
                 )}
               </div>
-              <div className='flex max-w-full flex-wrap items-center gap-2'>
+              <div className='flex max-w-full items-center gap-2'>
                 <MarketplaceSourceMenu
                   sources={groupSources}
                   selected={selectedSource}
@@ -278,30 +260,6 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
                   <RefreshCw />
                   {t('Refresh')}
                 </Button>
-                {updates.length > 0 && (
-                  <Button
-                    size='sm'
-                    variant={updateCount ? 'default' : 'outline'}
-                    disabled={
-                      indexQuery.isError ||
-                      installedQuery.isError ||
-                      indexQuery.isFetching ||
-                      installedQuery.isFetching
-                    }
-                    onClick={() =>
-                      setUpdateSelection({ source: selectedSource, updates })
-                    }
-                  >
-                    <ListRestart aria-hidden='true' />
-                    {updateCount
-                      ? t('Update all ({{total}})', {
-                          total: formatNumber(updateCount, locale),
-                        })
-                      : t('Skipped ({{total}})', {
-                          total: formatNumber(updates.length, locale),
-                        })}
-                  </Button>
-                )}
               </div>
             </div>
 
@@ -335,12 +293,6 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
         open={sourcesOpen}
         onOpenChange={setSourcesOpen}
       />
-      {updateSelection && (
-        <MarketplaceUpdatesDialog
-          {...updateSelection}
-          onClose={() => setUpdateSelection(null)}
-        />
-      )}
       <MarketplaceInstallDialog
         key={`${installTarget?.plugin.key ?? ''}-${installTarget?.version ?? ''}`}
         target={installTarget}

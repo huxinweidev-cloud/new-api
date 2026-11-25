@@ -60,11 +60,6 @@ import { Label } from '@/components/ui/label'
 import { DynamicPricingBreakdown } from '@/features/pricing/components/dynamic-pricing-breakdown'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { BILLING_PRICING_VARS } from '@/features/pricing/lib/billing-expr'
-import { compileBillingExpression } from '@/features/pricing/lib/billing-expression/parser'
-import {
-  getCachePriceLabels,
-  getCachePricingMode,
-} from '@/features/pricing/lib/cache-pricing'
 import { pluginUsageSchema } from '@/features/pricing/lib/plugin-pricing'
 import { PolicyDecisionRecord } from '@/features/system-settings/request-policies/decision-record'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
@@ -187,7 +182,7 @@ function BillingBreakdown(props: {
   // OpenAI 12-hour cache writes have their own price, listed like Claude's.
   const hasCacheWrite12h = (other.cache_creation_tokens_12h || 0) > 0
   const isTieredExpr = other.billing_mode === 'tiered_expr'
-  const tieredSummary = getTieredBillingSummary(other, log.model_name)
+  const tieredSummary = getTieredBillingSummary(other)
 
   const rows: Array<{ label: string; value: string }> = []
   const priceOpts = { digitsLarge: 4, digitsSmall: 6, abbreviate: false }
@@ -268,7 +263,9 @@ function BillingBreakdown(props: {
       other.cache_creation_ratio !== 1
     ) {
       rows.push({
-        label: hasCacheWrite12h ? t('Cache Write (30m)') : t('Cache Write'),
+        label: hasCacheWrite12h
+          ? t('Cache Creation (30m)')
+          : t('Cache Creation'),
         value: `${fmtPrice(baseInputUSD * other.cache_creation_ratio)}/M`,
       })
     }
@@ -277,7 +274,7 @@ function BillingBreakdown(props: {
       other.cache_creation_ratio_5m !== 0
     ) {
       rows.push({
-        label: t('Cache Write (5m)'),
+        label: t('Cache Creation (5m)'),
         value: `${fmtPrice(baseInputUSD * other.cache_creation_ratio_5m)}/M`,
       })
     }
@@ -286,7 +283,7 @@ function BillingBreakdown(props: {
       other.cache_creation_ratio_1h !== 0
     ) {
       rows.push({
-        label: t('Cache Write (1h)'),
+        label: t('Cache Creation (1h)'),
         value: `${fmtPrice(baseInputUSD * other.cache_creation_ratio_1h)}/M`,
       })
     }
@@ -295,7 +292,7 @@ function BillingBreakdown(props: {
       other.cache_creation_ratio_12h !== 0
     ) {
       rows.push({
-        label: t('Cache Write (12h)'),
+        label: t('Cache Creation (12h)'),
         value: `${fmtPrice(baseInputUSD * other.cache_creation_ratio_12h)}/M`,
       })
     }
@@ -416,14 +413,6 @@ function TokenBreakdown(props: { log: UsageLog; other: LogOtherData }) {
 
   if (!hasTokens) return null
 
-  const compiled = compileBillingExpression(
-    decodeBillingExprB64(other.expr_b64)
-  )
-  const cacheMode = getCachePricingMode(
-    compiled.status === 'ready' ? compiled.variables : [],
-    log.model_name
-  )
-
   const rows: Array<{ label: string; value: string }> = []
 
   rows.push({ label: t('Input Tokens'), value: promptTokens.toLocaleString() })
@@ -513,7 +502,7 @@ function TokenBreakdown(props: { log: UsageLog; other: LogOtherData }) {
             return (
               <DetailRow
                 key={variable.key}
-                label={t(getCachePriceLabels(variable, cacheMode).shortLabel)}
+                label={t(variable.shortLabel)}
                 value={count.toLocaleString()}
                 mono
               />
@@ -1251,7 +1240,6 @@ export function DetailsDialog(props: DetailsDialogProps) {
               />
             )}
             <DynamicPricingBreakdown
-              modelName={props.log.model_name}
               compact
               billingExpr={decodeBillingExprB64(other.expr_b64)}
               matchedTierLabel={other.matched_tier}

@@ -185,7 +185,8 @@ func channelMatchesExpectedTaskPlugin(c *gin.Context, channel *model.Channel, ex
 	if !exists || !ok || pinned.Generation == nil || pinned.Plugin == nil || pinned.Plugin.Meta.Key != expected {
 		return false
 	}
-	return slices.Contains(pinned.Plugin.Meta.ChannelTypes, channel.Type)
+	plugin, ok := pinned.Generation.GetByChannelType(channel.Type)
+	return ok && plugin == pinned.Plugin
 }
 
 // pinnedCandidatePlugins returns the plugins a pinned shared host endpoint, or
@@ -239,21 +240,18 @@ func pinnedEndpointCandidateForChannel(c *gin.Context, channel *model.Channel, e
 		if candidate.Meta.Key == expected {
 			expectedOwned = true
 		}
-		// A New API channel may bind several candidates, and a built-in
-		// channel type may be declared by several. The first candidate in
-		// generation order that the channel serves executes, so the billing
-		// provider depends only on the channel and the request, never on
-		// which channels an earlier retry attempt happened to try.
-		if selected >= 0 {
-			continue
-		}
 		if channel.Type == constant.ChannelTypeTaskPlugin || channel.Type == constant.ChannelTypeNewAPI {
-			if setting.BindsTaskPlugin(candidate.Meta.Key) {
+			// A New API channel may bind several candidates. The first bound
+			// candidate in generation order executes, so the billing provider
+			// depends only on the channel and the request, never on which
+			// channels an earlier retry attempt happened to try.
+			if selected < 0 && setting.BindsTaskPlugin(candidate.Meta.Key) {
 				selected = index
 			}
 			continue
 		}
-		if slices.Contains(candidate.Meta.ChannelTypes, channel.Type) {
+		plugin, indexed := generation.GetByChannelType(channel.Type)
+		if indexed && plugin == candidate {
 			selected = index
 		}
 	}

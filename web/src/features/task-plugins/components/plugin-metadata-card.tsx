@@ -126,7 +126,6 @@ export function PluginMetadataCard(props: PluginMetadataCardProps) {
         <PluginTransformSection
           hooks={props.transformHooks ?? []}
           schema={props.meta.configSchema}
-          scope={props.meta.scope}
         />
       )}
       {hasChannel && (

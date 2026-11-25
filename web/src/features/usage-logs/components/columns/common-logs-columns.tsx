@@ -181,7 +181,7 @@ function buildTypeDetailSegments(
     return showUnit ? `${text}/M` : text
   }
   const isTieredExpr = other.billing_mode === 'tiered_expr'
-  const tieredSummary = getTieredBillingSummary(other, log.model_name)
+  const tieredSummary = getTieredBillingSummary(other)
   if (isTieredExpr && other.is_task) {
     const tiers = parseTaskTiersFromExpr(
       decodeBillingExprB64(other.expr_b64),
@@ -237,11 +237,11 @@ function buildTypeDetailSegments(
           ].includes(entry.field)
         )
         .map((entry) => {
-          return `${t(entry.shortLabel)} ${formatPrice(entry.price)}`
+          return formatPriceCompact(entry.price)
         })
       if (cacheEntries.length > 0) {
         segments.push({
-          text: cacheEntries.join(' · '),
+          text: `${t('Cache')} ${formatPriceList(cacheEntries, false)}`,
           muted: true,
         })
       }

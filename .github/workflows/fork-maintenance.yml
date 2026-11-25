@@ -24,7 +24,7 @@ jobs:
           go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.0'
+          bun-version-file: web/package.json
       - name: Install and check frontend
         working-directory: web
         run: |
